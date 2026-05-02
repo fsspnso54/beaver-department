@@ -252,11 +252,12 @@ function loadingPage(baseUrl: string, signal: number): any {
         page: {
           type: "stack",
           props: {
-            gap: "xs",
+            gap: "sm",
             justify: "center"
           },
-          children: ["image", "signal", "caption", "seal"]
+          children: ["image", "meta", "seal"]
         },
+
         image: {
           type: "image",
           props: {
@@ -265,6 +266,16 @@ function loadingPage(baseUrl: string, signal: number): any {
             alt: "Cute beaver with the text your money aura is loading"
           }
         },
+
+        meta: {
+          type: "stack",
+          props: {
+            gap: "none",
+            justify: "center"
+          },
+          children: ["signal", "caption"]
+        },
+
         signal: {
           type: "badge",
           props: {
@@ -273,14 +284,16 @@ function loadingPage(baseUrl: string, signal: number): any {
             icon: "zap"
           }
         },
+
         caption: {
           type: "text",
           props: {
             content: "wallet vibes improving ✨",
-            size: "xs",
+            size: "sm",
             align: "center"
           }
         },
+
         seal: {
           type: "button",
           props: {
