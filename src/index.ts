@@ -194,14 +194,6 @@ function signalLabel(signal: number): string {
   return "Beaver Signal";
 }
 
-function composeSnapUrl(baseUrl: string, stage: "locked", signal: number): string {
-  if (signal > 0) {
-    return `${baseUrl}/?stage=${stage}&signal=${signal}`;
-  }
-
-  return `${baseUrl}/?stage=${stage}`;
-}
-
 function introPage(baseUrl: string): any {
   return {
     version: "2.0",
@@ -319,8 +311,6 @@ function loadingPage(baseUrl: string, signal: number): any {
 }
 
 function lockedPage(baseUrl: string, signal: number): any {
-  const snapUrl = composeSnapUrl(baseUrl, "locked", signal);
-
   return {
     version: "2.0",
     theme: {
@@ -358,7 +348,7 @@ function lockedPage(baseUrl: string, signal: number): any {
               action: "compose_cast",
               params: {
                 text: SHARE_TEXT,
-                embeds: [snapUrl]
+                embeds: [baseUrl]
               }
             }
           }
