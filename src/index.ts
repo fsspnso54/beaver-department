@@ -255,7 +255,7 @@ function loadingPage(baseUrl: string, signal: number): any {
             gap: "xs",
             justify: "center"
           },
-          children: ["image", "signal", "bottom"]
+          children: ["image", "signal", "caption", "seal"]
         },
         image: {
           type: "image",
@@ -273,19 +273,11 @@ function loadingPage(baseUrl: string, signal: number): any {
             icon: "zap"
           }
         },
-        bottom: {
-          type: "stack",
-          props: {
-            gap: "xs",
-            justify: "center"
-          },
-          children: ["caption", "seal"]
-        },
         caption: {
           type: "text",
           props: {
             content: "wallet vibes improving ✨",
-            size: "sm",
+            size: "xs",
             align: "center"
           }
         },
@@ -416,9 +408,9 @@ function htmlPage(): string {
 
 function pageForRequest(baseUrl: string, url: URL): any {
   const stage = url.searchParams.get("stage");
-  const signal = readSignalFromUrl(url);
 
   if (stage === "locked") {
+    const signal = readSignalFromUrl(url);
     return lockedPage(baseUrl, signal);
   }
 
