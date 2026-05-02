@@ -1,0 +1,22 @@
+{
+  "name": "prosperity-beaver-snap",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "SKIP_JFS_VERIFICATION=1 tsx src/index.ts",
+    "build": "tsc --noEmit",
+    "start": "node --loader tsx src/index.ts"
+  },
+  "dependencies": {
+    "@farcaster/snap": "latest",
+    "@farcaster/snap-hono": "latest",
+    "@hono/node-server": "latest",
+    "hono": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "tsx": "latest",
+    "typescript": "latest"
+  }
+}

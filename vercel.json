@@ -1,0 +1,46 @@
+{
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
+  "functions": {
+    "api/index.ts": {
+      "maxDuration": 10
+    }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET,POST,OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Accept,Content-Type,Authorization"
+        },
+        {
+          "key": "Access-Control-Max-Age",
+          "value": "86400"
+        },
+        {
+          "key": "Vary",
+          "value": "Accept"
+        },
+        {
+          "key": "Link",
+          "value": "</>; rel=\"alternate\"; type=\"application/vnd.farcaster.snap+json\""
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api/index"
+    }
+  ]
+}
