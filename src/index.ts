@@ -260,7 +260,7 @@ function loadingPage(baseUrl: string, signal: number): any {
         page: {
           type: "stack",
           props: {
-            gap: "sm",
+            gap: "xs",
             justify: "center"
           },
           children: ["image", "signal", "bottom"]
@@ -269,7 +269,7 @@ function loadingPage(baseUrl: string, signal: number): any {
           type: "image",
           props: {
             url: `${baseUrl}/assets/beaver-loading.jpg`,
-            aspect: "4:3",
+            aspect: "1:1",
             alt: "Cute beaver with the text your money aura is loading"
           }
         },
@@ -342,7 +342,7 @@ function lockedPage(baseUrl: string, signal: number): any {
           type: "image",
           props: {
             url: `${baseUrl}/assets/beaver-locked.jpg`,
-            aspect: "4:3",
+            aspect: "1:1",
             alt: "Crowned beaver with a locked in stamp"
           }
         },
