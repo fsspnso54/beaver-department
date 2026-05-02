@@ -57,10 +57,14 @@ async function upstashCommand<T>(command: Array<string | number>): Promise<T | n
 async function incrementActivationCounter(): Promise<number> {
   if (hasUpstash()) {
     try {
-      const result = await upstashCommand<number>(["INCR", ACTIVATION_COUNTER_KEY]);
+      const result = await upstashCommand<number | string>(["INCR", ACTIVATION_COUNTER_KEY]);
 
       if (typeof result === "number") {
         return result;
+      }
+
+      if (typeof result === "string") {
+        return Number(result);
       }
     } catch (error) {
       console.error("Failed to increment Upstash activation counter:", error);
@@ -74,10 +78,14 @@ async function incrementActivationCounter(): Promise<number> {
 async function incrementSealCounter(): Promise<number> {
   if (hasUpstash()) {
     try {
-      const result = await upstashCommand<number>(["INCR", SEAL_COUNTER_KEY]);
+      const result = await upstashCommand<number | string>(["INCR", SEAL_COUNTER_KEY]);
 
       if (typeof result === "number") {
         return result;
+      }
+
+      if (typeof result === "string") {
+        return Number(result);
       }
     } catch (error) {
       console.error("Failed to increment Upstash seal counter:", error);
@@ -186,7 +194,7 @@ function signalLabel(signal: number): string {
   return "Beaver Signal";
 }
 
-function composeSnapUrl(baseUrl: string, stage: "loading" | "locked", signal: number): string {
+function composeSnapUrl(baseUrl: string, stage: "locked", signal: number): string {
   if (signal > 0) {
     return `${baseUrl}/?stage=${stage}&signal=${signal}`;
   }
@@ -252,15 +260,16 @@ function loadingPage(baseUrl: string, signal: number): any {
         page: {
           type: "stack",
           props: {
-            gap: "sm"
+            gap: "sm",
+            justify: "center"
           },
-          children: ["image", "signal", "caption", "seal"]
+          children: ["image", "signal", "bottom"]
         },
         image: {
           type: "image",
           props: {
             url: `${baseUrl}/assets/beaver-loading.jpg`,
-            aspect: "1:1",
+            aspect: "4:3",
             alt: "Cute beaver with the text your money aura is loading"
           }
         },
@@ -271,6 +280,14 @@ function loadingPage(baseUrl: string, signal: number): any {
             color: "amber",
             icon: "zap"
           }
+        },
+        bottom: {
+          type: "stack",
+          props: {
+            gap: "xs",
+            justify: "center"
+          },
+          children: ["caption", "seal"]
         },
         caption: {
           type: "text",
@@ -316,24 +333,17 @@ function lockedPage(baseUrl: string, signal: number): any {
         page: {
           type: "stack",
           props: {
-            gap: "sm"
+            gap: "xs",
+            justify: "center"
           },
-          children: ["image", "caption", "share"]
+          children: ["image", "share", "credit"]
         },
         image: {
           type: "image",
           props: {
             url: `${baseUrl}/assets/beaver-locked.jpg`,
-            aspect: "1:1",
+            aspect: "4:3",
             alt: "Crowned beaver with a locked in stamp"
-          }
-        },
-        caption: {
-          type: "text",
-          props: {
-            content: `${SHARE_TEXT}\n${signalLabel(signal)} · beaver department by @a1`,
-            size: "xs",
-            align: "center"
           }
         },
         share: {
@@ -351,6 +361,14 @@ function lockedPage(baseUrl: string, signal: number): any {
                 embeds: [snapUrl]
               }
             }
+          }
+        },
+        credit: {
+          type: "text",
+          props: {
+            content: "beaver department by @a1",
+            size: "xs",
+            align: "center"
           }
         }
       }
@@ -409,10 +427,6 @@ function htmlPage(): string {
 function pageForRequest(baseUrl: string, url: URL): any {
   const stage = url.searchParams.get("stage");
   const signal = readSignalFromUrl(url);
-
-  if (stage === "loading") {
-    return loadingPage(baseUrl, signal);
-  }
 
   if (stage === "locked") {
     return lockedPage(baseUrl, signal);
