@@ -9,9 +9,104 @@ const app = new Hono();
 
 const SNAP_MEDIA_TYPE = "application/vnd.farcaster.snap+json";
 const DEFAULT_BASE_URL = "http://localhost:3003";
-const DEFAULT_SIGNAL = 284;
 const SNAP_LINK_HEADER = `</>; rel="alternate"; type="${SNAP_MEDIA_TYPE}"`;
+
 const SHARE_TEXT = "financial advice? no.\nbeaver advice? yes. 🦫";
+
+const ACTIVATION_COUNTER_KEY = "prosperity-beaver:activations";
+const SEAL_COUNTER_KEY = "prosperity-beaver:seals";
+
+const UPSTASH_REDIS_REST_URL = process.env.UPSTASH_REDIS_REST_URL?.replace(/\/$/, "");
+const UPSTASH_REDIS_REST_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+let localActivationCounter = 0;
+let localSealCounter = 0;
+
+function hasUpstash(): boolean {
+  return Boolean(UPSTASH_REDIS_REST_URL && UPSTASH_REDIS_REST_TOKEN);
+}
+
+async function upstashCommand<T>(command: Array<string | number>): Promise<T | null> {
+  if (!hasUpstash()) {
+    return null;
+  }
+
+  const commandPath = command.map((part) => encodeURIComponent(String(part))).join("/");
+  const response = await fetch(`${UPSTASH_REDIS_REST_URL}/${commandPath}`, {
+    headers: {
+      Authorization: `Bearer ${UPSTASH_REDIS_REST_TOKEN}`
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Upstash request failed: ${response.status} ${response.statusText}`);
+  }
+
+  const data = (await response.json()) as {
+    result?: T;
+    error?: string;
+  };
+
+  if (data.error) {
+    throw new Error(data.error);
+  }
+
+  return data.result ?? null;
+}
+
+async function incrementActivationCounter(): Promise<number> {
+  if (hasUpstash()) {
+    try {
+      const result = await upstashCommand<number>(["INCR", ACTIVATION_COUNTER_KEY]);
+
+      if (typeof result === "number") {
+        return result;
+      }
+    } catch (error) {
+      console.error("Failed to increment Upstash activation counter:", error);
+    }
+  }
+
+  localActivationCounter += 1;
+  return localActivationCounter;
+}
+
+async function incrementSealCounter(): Promise<number> {
+  if (hasUpstash()) {
+    try {
+      const result = await upstashCommand<number>(["INCR", SEAL_COUNTER_KEY]);
+
+      if (typeof result === "number") {
+        return result;
+      }
+    } catch (error) {
+      console.error("Failed to increment Upstash seal counter:", error);
+    }
+  }
+
+  localSealCounter += 1;
+  return localSealCounter;
+}
+
+async function readCounter(key: string, localValue: number): Promise<number> {
+  if (hasUpstash()) {
+    try {
+      const result = await upstashCommand<string | number | null>(["GET", key]);
+
+      if (typeof result === "number") {
+        return result;
+      }
+
+      if (typeof result === "string") {
+        return Number(result || 0);
+      }
+    } catch (error) {
+      console.error(`Failed to read Upstash counter ${key}:`, error);
+    }
+  }
+
+  return localValue;
+}
 
 function getBaseUrl(requestUrl?: string): string {
   const envBase = process.env.SNAP_PUBLIC_BASE_URL?.replace(/\/$/, "");
@@ -73,16 +168,6 @@ app.options("*", () => {
   });
 });
 
-function makeSignalId(ctx: any): number {
-  const fid = Number(ctx?.action?.user?.fid ?? 0);
-
-  if (Number.isFinite(fid) && fid > 0) {
-    return 100 + ((fid * 97) % 9000);
-  }
-
-  return DEFAULT_SIGNAL;
-}
-
 function readSignalFromUrl(url: URL): number {
   const raw = Number(url.searchParams.get("signal") || "");
 
@@ -90,11 +175,23 @@ function readSignalFromUrl(url: URL): number {
     return Math.floor(raw);
   }
 
-  return DEFAULT_SIGNAL;
+  return 0;
+}
+
+function signalLabel(signal: number): string {
+  if (signal > 0) {
+    return `Beaver Signal #${signal}`;
+  }
+
+  return "Beaver Signal";
 }
 
 function composeSnapUrl(baseUrl: string, stage: "loading" | "locked", signal: number): string {
-  return `${baseUrl}/?stage=${stage}&signal=${signal}`;
+  if (signal > 0) {
+    return `${baseUrl}/?stage=${stage}&signal=${signal}`;
+  }
+
+  return `${baseUrl}/?stage=${stage}`;
 }
 
 function introPage(baseUrl: string): any {
@@ -112,21 +209,13 @@ function introPage(baseUrl: string): any {
             gap: "lg",
             justify: "center"
           },
-          children: ["title", "subtitle", "activate"]
+          children: ["title", "activate"]
         },
         title: {
           type: "text",
           props: {
             content: "the prosperity beaver\nhas chosen you",
             weight: "bold",
-            align: "center"
-          }
-        },
-        subtitle: {
-          type: "text",
-          props: {
-            content: "press carefully. the beaver is watching.",
-            size: "sm",
             align: "center"
           }
         },
@@ -178,7 +267,7 @@ function loadingPage(baseUrl: string, signal: number): any {
         signal: {
           type: "badge",
           props: {
-            label: `Beaver Signal #${signal}`,
+            label: signalLabel(signal),
             color: "amber",
             icon: "zap"
           }
@@ -229,7 +318,7 @@ function lockedPage(baseUrl: string, signal: number): any {
           props: {
             gap: "sm"
           },
-          children: ["image", "title", "signal", "share", "footer"]
+          children: ["image", "caption", "share"]
         },
         image: {
           type: "image",
@@ -239,20 +328,12 @@ function lockedPage(baseUrl: string, signal: number): any {
             alt: "Crowned beaver with a locked in stamp"
           }
         },
-        title: {
+        caption: {
           type: "text",
           props: {
-            content: "prosperity unlocked",
-            weight: "bold",
+            content: `${SHARE_TEXT}\n${signalLabel(signal)} · beaver department by @a1`,
+            size: "xs",
             align: "center"
-          }
-        },
-        signal: {
-          type: "badge",
-          props: {
-            label: `Beaver Signal #${signal}`,
-            color: "green",
-            icon: "trophy"
           }
         },
         share: {
@@ -270,14 +351,6 @@ function lockedPage(baseUrl: string, signal: number): any {
                 embeds: [snapUrl]
               }
             }
-          }
-        },
-        footer: {
-          type: "text",
-          props: {
-            content: "beaver department by @a1",
-            size: "sm",
-            align: "center"
           }
         }
       }
@@ -312,8 +385,15 @@ function htmlPage(): string {
         box-shadow: 0 18px 50px rgba(0, 0, 0, 0.06);
       }
 
-      a { color: #dc2626; }
-      code { background: #fafafa; padding: 2px 6px; border-radius: 6px; }
+      a {
+        color: #dc2626;
+      }
+
+      code {
+        background: #fafafa;
+        padding: 2px 6px;
+        border-radius: 6px;
+      }
     </style>
   </head>
   <body>
@@ -390,6 +470,36 @@ app.get("/health", (c) => {
   );
 });
 
+app.get("/stats", async (c) => {
+  const statsSecret = process.env.STATS_SECRET;
+
+  if (statsSecret && c.req.query("secret") !== statsSecret) {
+    return c.json(
+      {
+        error: "unauthorized"
+      },
+      401,
+      corsHeaders()
+    );
+  }
+
+  const activations = await readCounter(ACTIVATION_COUNTER_KEY, localActivationCounter);
+  const seals = await readCounter(SEAL_COUNTER_KEY, localSealCounter);
+
+  return c.json(
+    {
+      activations,
+      seals,
+      storage: hasUpstash() ? "upstash" : "memory",
+      note: hasUpstash()
+        ? "persistent counter is active"
+        : "memory counter only; add Upstash env vars for persistence"
+    },
+    200,
+    corsHeaders()
+  );
+});
+
 registerSnapHandler(app, async (ctx: any): Promise<any> => {
   const baseUrl = getBaseUrl(ctx.request.url);
   const url = new URL(ctx.request.url);
@@ -400,11 +510,12 @@ registerSnapHandler(app, async (ctx: any): Promise<any> => {
   }
 
   if (action === "activate") {
-    const signal = makeSignalId(ctx);
+    const signal = await incrementActivationCounter();
     return loadingPage(baseUrl, signal);
   }
 
   if (action === "seal") {
+    await incrementSealCounter();
     const signal = readSignalFromUrl(url);
     return lockedPage(baseUrl, signal);
   }
